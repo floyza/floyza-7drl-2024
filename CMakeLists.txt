@@ -7,9 +7,12 @@ if(NOT DEFINED CMAKE_TOOLCHAIN_FILE)
 endif()
 
 project(
-    libtcod-vcpkg-template  # Project name, change this as needed.
+    dungeons-inc
     LANGUAGES C CXX
 )
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/bin")  # Keep all runtime files in one directory.
 
@@ -19,10 +22,12 @@ file(
     ${PROJECT_SOURCE_DIR}/src/*.cpp
     ${PROJECT_SOURCE_DIR}/src/*.hpp
 )
+
 add_executable(${PROJECT_NAME} ${SOURCE_FILES})
 
 # Ensure the C++17 standard is available.
-target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_17)
+# this doesn't work for clang for some reason, so I'm setting it above instead
+#target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_17)
 
 # Enforce UTF-8 encoding on MSVC.
 if (MSVC)
