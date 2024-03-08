@@ -19,4 +19,7 @@ int wall_merge(int wall1, int wall2);
 
 void draw_box(TCOD_Console& console, const std::array<int, 4>& rect, TCOD_ColorRGB fg = col::WHITE_BR);
 
+void draw_hline(TCOD_Console& console, int x, int y, int length, TCOD_ColorRGB fg = col::WHITE_BR);
+void draw_vline(TCOD_Console& console, int x, int y, int length, TCOD_ColorRGB fg = col::WHITE_BR);
+
 #endif  // DRAWING_H_

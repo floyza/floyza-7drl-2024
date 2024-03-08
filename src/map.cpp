@@ -2,9 +2,13 @@
 
 #include <SDL.h>
 
+#include <map>
+
 #include "colors.hpp"
 #include "dir.hpp"
+#include "drawing.hpp"
 #include "rand.hpp"
+#include "util.hpp"
 
 Map::Map(int w, int h) : map(w, h), discovered(w, std::vector<bool>(h, false)) {
   generate();
@@ -113,7 +117,7 @@ void Map::gen_rand_walk() {
         steps = hall_len;
       } else {
         if (percent_chance(monster_chance)) {
-          actors[new_actor_id()] = generate_monster(loc);
+          actors[new_actor_id()] = generate_monster(breeds[rand_int(0, breeds.size() - 1)], loc);
         }
         sober = false;
         steps = rand_int(cave_min, cave_max);
@@ -216,7 +220,7 @@ bool Map::can_sober(const Pos& pos, const Pos& dir, int hall_len, int limit, dou
 
 void Map::set_walkable(const Pos& pos, bool walkable) { map.setProperties(pos.x, pos.y, walkable, walkable); }
 
-std::optional<Actor*> Map::actor_at_pos(Pos pos) {
+std::optional<const Actor*> Map::actor_at_pos(Pos pos) const {
   for (auto& [_, actor] : actors) {
     if (actor.p == pos) {
       return &actor;
@@ -255,12 +259,56 @@ bool Map::in_fov(Pos pos) const {
 void Map::monsters_act() {
   for (auto& [_, actor] : actors) {
     if (actor.mon) {
-      monster_act(*this, actor);
+      actor.mon->breed.ai(*this, actor);
     }
   }
 }
 
 void Map::process_input_virt(int c) {
+  if (examining) {
+    switch (c) {
+      case 'h':
+      case SDLK_KP_4:
+      case SDLK_LEFT:
+        examining->pos += Pos{-1, 0};
+        break;
+      case 'j':
+      case SDLK_DOWN:
+      case SDLK_KP_2:
+        examining->pos += Pos{0, 1};
+        break;
+      case 'k':
+      case SDLK_UP:
+      case SDLK_KP_8:
+        examining->pos += Pos{0, -1};
+        break;
+      case 'l':
+      case SDLK_RIGHT:
+      case SDLK_KP_6:
+        examining->pos += Pos{1, 0};
+        break;
+      case 'y':
+      case SDLK_KP_7:
+        examining->pos += Pos{-1, -1};
+        break;
+      case 'u':
+      case SDLK_KP_9:
+        examining->pos += Pos{1, -1};
+        break;
+      case 'b':
+      case SDLK_KP_1:
+        examining->pos += Pos{-1, 1};
+        break;
+      case 'n':
+      case SDLK_KP_3:
+        examining->pos += Pos{1, 1};
+        break;
+      case SDLK_ESCAPE:
+      case SDLK_BACKSPACE:
+        examining = std::nullopt;
+    }
+    return;
+  }
   bool used_action = false;
   switch (c) {
     case 'h':
@@ -299,6 +347,10 @@ void Map::process_input_virt(int c) {
     case SDLK_KP_3:
       used_action = move_actor(*this, *player, Pos{1, 1});
       break;
+    case 'x':
+    case '/':
+      examining = Examining{.pos = player->p};
+      break;
     case 's':
     case SDLK_KP_5:
     case SDLK_PERIOD:
@@ -308,14 +360,108 @@ void Map::process_input_virt(int c) {
   }
   if (used_action) {
     monsters_act();
+    check_dead();
+  }
+}
+
+void Map::check_dead() {
+  for (auto it = actors.begin(); it != actors.end();) {
+    if (it->second.hp <= 0) {
+      if (it->second.is_player) {
+        // you die
+      } else {
+        it = actors.erase(it);
+        continue;
+      }
+    }
+    ++it;
   }
 }
 
 void Map::draw_virt(tcod::Console& console, int x, int y, int w, int h) const {
+  int sbw = 14;
+
+  draw_level(console, x, y, w - sbw - 1, h);
+
+  draw_vline(console, x + w - sbw - 1, y, h);
+  console[{x + w - sbw - 1, y - 1}].ch = L'┬';
+  double health_rat = std::max(0.0, static_cast<double>(player->hp) / player->max_hp);
+  TCOD_ColorRGB health_color = col::GREEN;
+  if (health_rat < .6) {
+    health_color = col::YELLOW;
+  }
+  if (health_rat < .3) {
+    health_color = col::RED;
+  }
+  tcod::print(console, {x + w - sbw + 1, y}, "HP:", col::WHITE_BR, std::nullopt);
+  tcod::print(console, {x + w - sbw + 4, y}, std::to_string(player->hp), health_color, std::nullopt);
+  tcod::print(
+      console,
+      {x + w - sbw + 4 + static_cast<int>(std::to_string(player->hp).length()), y},
+      "/" + std::to_string(player->max_hp),
+      col::WHITE_BR,
+      std::nullopt);
+  int healthbar_len = sbw - 2;
+  int removed = (1 - health_rat) * healthbar_len;
+  tcod::print(console, {x + w - sbw + 1, y + 1}, std::string(healthbar_len - removed, '*'), health_color, std::nullopt);
+  tcod::print(
+      console,
+      {x + w - sbw + 1 + (healthbar_len - removed), y + 1},
+      std::string(removed, '-'),
+      col::WHITE,
+      std::nullopt);
+
+  // summarize seen monsters
+  std::multimap<std::string, const Actor*> sorted_monsters;
+  for (const auto& [i, a] : actors) {
+    if (in_fov(a.p) && a.mon) {
+      sorted_monsters.insert(std::make_pair(a.mon->breed.name, &a));
+    }
+  }
+  int col = y + 3;
+  for (auto it = sorted_monsters.begin(); it != sorted_monsters.end();) {
+    std::string key = it->first;
+    const Actor* mon = it->second;
+    int count = 0;
+    do {
+      ++count;
+      ++it;
+    } while (it != sorted_monsters.end() && key == it->first);
+    auto& num_tile = console[{x + w - sbw, col}];
+    if (count > 9) {
+      num_tile.fg = col::CYAN_BR;
+      num_tile.ch = '#';
+    } else if (count > 1) {
+      num_tile.fg = col::WHITE_BR;
+      num_tile.ch = std::to_string(count)[0];
+    } else {
+      num_tile.ch = '*';
+      num_tile.fg = col::GREEN;
+      health_rat = static_cast<double>(mon->hp) / mon->max_hp;
+      if (health_rat < .6) {
+        num_tile.fg = col::YELLOW;
+      }
+      if (health_rat < .3) {
+        num_tile.fg = col::RED;
+      }
+    }
+    auto& spr_tile = console[{x + w - sbw + 1, col}];
+    spr_tile.fg = mon->color;
+    spr_tile.ch = mon->chr;
+    tcod::print(console, {x + w - sbw + 3, col}, mon->mon->breed.name, col::WHITE_BR, std::nullopt);
+    ++col;
+  }
+}
+
+void Map::draw_level(tcod::Console& console, int x, int y, int w, int h) const {
   auto wall = col::WHITE;
   auto floor = col::YELLOW;
   int basex = player->p.x - w / 2;
   int basey = player->p.y - h / 2;
+  if (examining) {
+    basex = examining->pos.x - w / 2;
+    basey = examining->pos.y - h / 2;
+  }
   for (int tx = basex; tx < basex + w; ++tx) {
     for (int ty = basey; ty < basey + h; ++ty) {
       if (in_level(Pos{tx, ty})) {
@@ -351,4 +497,62 @@ void Map::draw_virt(tcod::Console& console, int x, int y, int w, int h) const {
       }
     }
   }
+  if (examining) {
+    std::swap(console[{x + w / 2, y + h / 2}].bg, console[{x + w / 2, y + h / 2}].fg);
+    draw_desc(console, examining->pos, {x + 1, y + h - 1});
+  }
+}
+
+// assumes there's some room above
+void Map::draw_desc(tcod::Console& console, Pos tile, Pos disp) const {
+  auto mbactor = actor_at_pos(tile);
+  std::optional<std::pair<TCOD_ColorRGB, std::string>> hpdata;
+  std::string actormsg;
+  if (mbactor) {
+    const auto& actor = **mbactor;
+    if (actor.mon) {
+      const auto& name = actor.mon->breed.name;
+      if (name.length() > 0 && is_vowel(name[0])) {
+        actormsg = "An ";
+      } else {
+        actormsg = "A ";
+      }
+      actormsg += name;
+    } else {
+      actormsg = "You";
+    }
+    hpdata = std::make_pair(col::GREEN, "Good health");
+    double health_rat = static_cast<double>(actor.hp) / actor.max_hp;
+    if (health_rat < .6) {
+      hpdata = std::make_pair(col::YELLOW, "Feeling shaky");
+    }
+    if (health_rat < .3) {
+      hpdata = std::make_pair(col::RED, "Nearly dead");
+    }
+  }
+  std::string floormsg;
+  if (tile == exit_) {
+    floormsg = "A portal out of here";
+  } else if (is_walkable(tile)) {
+    floormsg = "The floor";
+  } else {
+    floormsg = "A wall";
+  }
+
+  tcod::print(console, {disp.x, disp.y - 1}, actormsg, col::WHITE_BR, std::nullopt);
+  if (hpdata) {
+    int x = disp.x + actormsg.length();
+    int y = disp.y - 1;
+    console[{x + 1, y}].ch = ' ';
+    console[{x + 1, y}].ch = '(';
+    console[{x + 1, y}].fg = col::WHITE_BR;
+    console[{x + 2, y}].ch = '*';
+    console[{x + 2, y}].fg = hpdata->first;
+    console[{x + 3, y}].ch = ')';
+    console[{x + 3, y}].fg = col::WHITE_BR;
+    console[{x + 3, y}].ch = ')';
+    console[{x + 4, y}].ch = ' ';
+    tcod::print(console, {x + 5, y}, hpdata->second, col::WHITE_BR, std::nullopt);
+  }
+  tcod::print(console, {disp.x, disp.y}, floormsg, col::WHITE_BR, std::nullopt);
 }

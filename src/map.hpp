@@ -9,6 +9,10 @@
 #include "gui.hpp"
 #include "pos.hpp"
 
+struct Examining {
+  Pos pos;
+};
+
 class Map : public GNode {
   mutable TCODMap map;
   mutable std::vector<std::vector<bool>> discovered;  // discovered[x][y]
@@ -30,14 +34,18 @@ class Map : public GNode {
   int actor_id_ctr = 0;
   int new_actor_id();
 
-  std::unordered_map<int, Actor> actors;
   int player_id;
   Actor* player;
 
+  void draw_level(tcod::Console& console, int x, int y, int w, int h) const;
   void draw_virt(tcod::Console& console, int x, int y, int w, int h) const override;
   void process_input_virt(int c) override;
 
   void monsters_act();
+  void check_dead();
+
+  std::optional<Examining> examining;
+  void draw_desc(tcod::Console& console, Pos tile, Pos disp) const;
 
  public:
   Map(int w, int h);
@@ -49,9 +57,17 @@ class Map : public GNode {
   int get_width() const { return map.getWidth(); }
   int get_height() const { return map.getHeight(); }
   bool is_walkable(const Pos& pos) const { return map.isWalkable(pos.x, pos.y); }
-  std::optional<Actor*> actor_at_pos(Pos pos);
-
+  std::optional<const Actor*> actor_at_pos(Pos pos) const;
+  std::optional<Actor*> actor_at_pos(Pos pos) {
+    auto val = const_cast<const Map*>(this)->actor_at_pos(pos);
+    if (val) {
+      return const_cast<Actor*>(*val);
+    }
+    return std::nullopt;
+  }
   std::optional<Actor*> get_actor(int id);
+  std::unordered_map<int, Actor> actors;
+
   Actor* get_player() { return player; }
 
   bool in_fov(Pos pos) const;

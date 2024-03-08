@@ -45,7 +45,7 @@ static time_point<steady_clock> frame_time;
 void main_loop() {
   // Rendering.
   g_console.clear();
-  g_root->draw(g_console, 0, 0, 80, 40);
+  g_root->draw(g_console, 0, 0, g_console.get_width(), g_console.get_height());
   g_context.present(g_console);
 
   // Handle input.
@@ -90,13 +90,17 @@ int main(int argc, char** argv) {
     auto tileset = tcod::load_tilesheet(get_data_dir() / "cp866_8x12.png", {16, 16}, tcod::CHARMAP_CP437);
     params.tileset = tileset.get();
 
-    g_console = tcod::Console{80, 40};
+    g_console = tcod::Console{90, 40};
     params.console = g_console.get();
 
     g_context = tcod::Context(params);
 
     std::unique_ptr<GNode> map = std::make_unique<Map>(80, 40);
-    std::unique_ptr<GNode> root = std::make_unique<GBoxed>(std::move(map));
+
+    std::vector<std::pair<std::string, std::unique_ptr<GNode>>> tabs;
+    tabs.push_back(std::make_pair(std::string("Factory"), std::make_unique<GNode>()));
+    tabs.push_back(std::make_pair(std::string("Dungeon"), std::move(map)));
+    std::unique_ptr<GNode> root = std::make_unique<GTabs>(std::move(tabs), 1);
     g_root = std::move(root);
 
 #ifdef __EMSCRIPTEN__

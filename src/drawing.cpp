@@ -79,3 +79,19 @@ void draw_box(TCOD_Console& console, const std::array<int, 4>& rect, TCOD_ColorR
   console[{x + width - 1, y + height - 1}].ch = wall_merge(L'┘', console[{x + width - 1, y + height - 1}].ch);
   console[{x + width - 1, y + height - 1}].fg = fg;
 }
+
+void draw_hline(TCOD_Console& console, int x, int y, int length, TCOD_ColorRGB fg) {
+  for (int i = 0; i < length; ++i) {
+    auto& tile = console[{x + i, y}];
+    tile.ch = wall_merge(L'─', tile.ch);
+    tile.fg = fg;
+  }
+}
+
+void draw_vline(TCOD_Console& console, int x, int y, int length, TCOD_ColorRGB fg) {
+  for (int i = 0; i < length; ++i) {
+    auto& tile = console[{x, y + i}];
+    tile.ch = wall_merge(L'│', tile.ch);
+    tile.fg = fg;
+  }
+}
