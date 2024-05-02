@@ -9,6 +9,7 @@
 #include "dir.hpp"
 #include "drawing.hpp"
 #include "items.hpp"
+#include "los_path.hpp"
 #include "rand.hpp"
 #include "util.hpp"
 
@@ -443,10 +444,14 @@ bool Map::attempt_target_select() {
       return false;
     }
     Actor& actor = **mbactor;
-    auto line = tcod::BresenhamLine(target_selecting->pos, player->p).without_endpoints();
-    for (auto [lx, ly] : line) {
-      if (!is_walkable({lx, ly}) || actor_at_pos({lx, ly})) {
-        // something is in the way
+    TCODPath path = get_los_path(*this, player->p, target_selecting->pos);
+    if (path.isEmpty()) {
+      return false;
+    }
+    for (int i=0; i<path.size() - 1; ++i) {
+      int lx, ly;
+      path.get(i, &lx, &ly);
+      if (actor_at_pos({lx, ly})) {
         return false;
       }
     }
@@ -638,8 +643,10 @@ void Map::draw_level(tcod::Console& console, int x, int y, int w, int h) const {
     std::swap(console[{x + w / 2, y + h / 2}].bg, console[{x + w / 2, y + h / 2}].fg);
     draw_desc(console, target_selecting->pos, {x + 1, y + h - 1});
     if (in_fov(target_selecting->pos) && is_walkable(target_selecting->pos)) {
-      auto line = tcod::BresenhamLine(target_selecting->pos, player->p).without_endpoints();
-      for (auto [lx, ly] : line) {
+      TCODPath path = get_los_path(*this, player->p, target_selecting->pos);
+      for (int i = 0; i < path.size() - 1; ++i) {
+        int lx, ly;
+        path.get(i, &lx, &ly);
         auto& tile = console[{lx - basex + x, ly - basey + y}];
         tile.ch = '*';
         tile.fg = col::MAGENTA;
