@@ -13,6 +13,7 @@
         "zlib"
       ]
     },
-    "sdl2"
+    "sdl2",
+    "boost-container-hash"
   ]
 }

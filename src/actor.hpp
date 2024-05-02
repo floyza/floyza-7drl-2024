@@ -13,6 +13,7 @@ struct MonsterData {
 };
 
 struct Actor {
+  int id;
   Pos p;
   int chr;
   tcod::ColorRGB color;
@@ -24,8 +25,8 @@ struct Actor {
   int atk;
 };
 
-Actor create_player(Pos p);
+Actor create_player(int id, Pos p);
 
-Actor generate_monster(Breed b, Pos p);
+Actor generate_monster(int id, Breed b, Pos p);
 
 #endif  // ACTOR_H_

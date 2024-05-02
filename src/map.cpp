@@ -3,17 +3,20 @@
 #include <SDL.h>
 
 #include <map>
+#include <string>
 
 #include "colors.hpp"
 #include "dir.hpp"
 #include "drawing.hpp"
+#include "items.hpp"
 #include "rand.hpp"
 #include "util.hpp"
 
-Map::Map(int w, int h) : map(w, h), discovered(w, std::vector<bool>(h, false)) {
+Map::Map(int w, int h)
+    : map(w, h), discovered(w, std::vector<bool>(h, false)), floor_items(), item_quantities(items.size(), 0) {
   generate();
   player_id = new_actor_id();
-  actors[player_id] = create_player(entrance_);
+  actors[player_id] = create_player(player_id, entrance_);
 
   player = &actors[player_id];  // is never invalidated unless it is erased, which it isn't
 }
@@ -117,7 +120,8 @@ void Map::gen_rand_walk() {
         steps = hall_len;
       } else {
         if (percent_chance(monster_chance)) {
-          actors[new_actor_id()] = generate_monster(breeds[rand_int(0, breeds.size() - 1)], loc);
+          int id = new_actor_id();
+          actors[id] = generate_monster(id, breeds[rand_int(0, breeds.size() - 1)], loc);
         }
         sober = false;
         steps = rand_int(cave_min, cave_max);
@@ -157,6 +161,16 @@ void Map::gen_rand_walk() {
   }
   exit_ = loc;
   set_walkable(loc, true);
+
+  floor_items = {};
+  int item_count = rand_int(4, 6);
+  while (item_count > 0) {
+    Pos p{rand_int(0, width - 1), rand_int(0, height - 1)};
+    if (is_walkable(p) && !floor_items.contains(p)) {
+      floor_items[p] = FloorItem{.item = 0, .amount = rand_int(1, 2) * 5};
+      --item_count;
+    }
+  }
 }
 
 bool Map::in_level(const Pos& pos) const {
@@ -238,7 +252,7 @@ std::optional<Actor*> Map::get_actor(int id) {
 }
 
 void Map::recompute_fov() const {
-  map.computeFov(player->p.x, player->p.y, 8, true, FOV_BASIC);
+  map.computeFov(player->p.x, player->p.y, 8, true, FOV_PERMISSIVE_4);
   fov_dirty = false;
   for (int x = 0; x < get_width(); ++x) {
     for (int y = 0; y < get_height(); ++y) {
@@ -265,7 +279,58 @@ void Map::monsters_act() {
 }
 
 void Map::process_input_virt(int c) {
-  if (examining) {
+  bool used_action = false;
+  if (target_selecting) {
+    switch (c) {
+      case 'h':
+      case SDLK_KP_4:
+      case SDLK_LEFT:
+        target_selecting->pos += Pos{-1, 0};
+        break;
+      case 'j':
+      case SDLK_DOWN:
+      case SDLK_KP_2:
+        target_selecting->pos += Pos{0, 1};
+        break;
+      case 'k':
+      case SDLK_UP:
+      case SDLK_KP_8:
+        target_selecting->pos += Pos{0, -1};
+        break;
+      case 'l':
+      case SDLK_RIGHT:
+      case SDLK_KP_6:
+        target_selecting->pos += Pos{1, 0};
+        break;
+      case 'y':
+      case SDLK_KP_7:
+        target_selecting->pos += Pos{-1, -1};
+        break;
+      case 'u':
+      case SDLK_KP_9:
+        target_selecting->pos += Pos{1, -1};
+        break;
+      case 'b':
+      case SDLK_KP_1:
+        target_selecting->pos += Pos{-1, 1};
+        break;
+      case 'n':
+      case SDLK_KP_3:
+        target_selecting->pos += Pos{1, 1};
+        break;
+      case SDLK_KP_ENTER:
+      case SDLK_RETURN:
+      case SDLK_RETURN2:  // what the heck is this?
+        if (attempt_target_select()) {
+          used_action = true;
+          target_selecting = std::nullopt;
+        }
+        break;
+      case SDLK_ESCAPE:
+      case SDLK_BACKSPACE:
+        target_selecting = std::nullopt;
+    }
+  } else if (examining) {
     switch (c) {
       case 'h':
       case SDLK_KP_4:
@@ -307,61 +372,107 @@ void Map::process_input_virt(int c) {
       case SDLK_BACKSPACE:
         examining = std::nullopt;
     }
-    return;
-  }
-  bool used_action = false;
-  switch (c) {
-    case 'h':
-    case SDLK_KP_4:
-    case SDLK_LEFT:
-      used_action = move_actor(*this, *player, Pos{-1, 0});
-      break;
-    case 'j':
-    case SDLK_DOWN:
-    case SDLK_KP_2:
-      used_action = move_actor(*this, *player, Pos{0, 1});
-      break;
-    case 'k':
-    case SDLK_UP:
-    case SDLK_KP_8:
-      used_action = move_actor(*this, *player, Pos{0, -1});
-      break;
-    case 'l':
-    case SDLK_RIGHT:
-    case SDLK_KP_6:
-      used_action = move_actor(*this, *player, Pos{1, 0});
-      break;
-    case 'y':
-    case SDLK_KP_7:
-      used_action = move_actor(*this, *player, Pos{-1, -1});
-      break;
-    case 'u':
-    case SDLK_KP_9:
-      used_action = move_actor(*this, *player, Pos{1, -1});
-      break;
-    case 'b':
-    case SDLK_KP_1:
-      used_action = move_actor(*this, *player, Pos{-1, 1});
-      break;
-    case 'n':
-    case SDLK_KP_3:
-      used_action = move_actor(*this, *player, Pos{1, 1});
-      break;
-    case 'x':
-    case '/':
-      examining = Examining{.pos = player->p};
-      break;
-    case 's':
-    case SDLK_KP_5:
-    case SDLK_PERIOD:
-    case SDLK_KP_PERIOD:
-      used_action = true;
-      break;
+  } else {
+    switch (c) {
+      case 'h':
+      case SDLK_KP_4:
+      case SDLK_LEFT:
+        used_action = move_actor(*this, *player, Pos{-1, 0});
+        break;
+      case 'j':
+      case SDLK_DOWN:
+      case SDLK_KP_2:
+        used_action = move_actor(*this, *player, Pos{0, 1});
+        break;
+      case 'k':
+      case SDLK_UP:
+      case SDLK_KP_8:
+        used_action = move_actor(*this, *player, Pos{0, -1});
+        break;
+      case 'l':
+      case SDLK_RIGHT:
+      case SDLK_KP_6:
+        used_action = move_actor(*this, *player, Pos{1, 0});
+        break;
+      case 'y':
+      case SDLK_KP_7:
+        used_action = move_actor(*this, *player, Pos{-1, -1});
+        break;
+      case 'u':
+      case SDLK_KP_9:
+        used_action = move_actor(*this, *player, Pos{1, -1});
+        break;
+      case 'b':
+      case SDLK_KP_1:
+        used_action = move_actor(*this, *player, Pos{-1, 1});
+        break;
+      case 'n':
+      case SDLK_KP_3:
+        used_action = move_actor(*this, *player, Pos{1, 1});
+        break;
+      case 'x':
+      case '/':
+        examining = Examining{.pos = player->p};
+        break;
+      case '1':
+      case '2':
+      case '3':
+        used_action = use_ability(std::stoi(std::string(1, static_cast<char>(c))) - 1);
+        break;
+      case 's':
+      case SDLK_KP_5:
+      case SDLK_PERIOD:
+      case SDLK_KP_PERIOD:
+        used_action = true;
+        break;
+    }
   }
   if (used_action) {
+    check_dead();
     monsters_act();
     check_dead();
   }
+}
+
+bool Map::attempt_target_select() {
+  assert(target_selecting);
+
+  if (in_fov(target_selecting->pos)) {
+    auto mbactor = actor_at_pos(target_selecting->pos);
+    if (!mbactor) {
+      return false;
+    }
+    Actor& actor = **mbactor;
+    auto line = tcod::BresenhamLine(target_selecting->pos, player->p).without_endpoints();
+    for (auto [lx, ly] : line) {
+      if (!is_walkable({lx, ly}) || actor_at_pos({lx, ly})) {
+        // something is in the way
+        return false;
+      }
+    }
+    item_quantities[target_selecting->item_to_consume] -= 1;
+    target_selecting->callback(*this, ActorSS{actor.id});
+    return true;
+  }
+  return false;
+}
+
+bool Map::use_ability(int ability) {
+  const Item& item = items[ability];
+  bool used_action = false;
+  std::visit(
+      [this, &used_action, ability](auto&& action) {
+        using T = std::decay_t<decltype(action)>;
+        if constexpr (std::is_same_v<T, ItemF<>>) {
+          action(*this);
+          item_quantities[ability] -= 1;
+          used_action = true;
+        } else if constexpr (std::is_same_v<T, ItemF<ActorSS>>) {
+          target_selecting = {.pos = player->p, .item_to_consume = ability, .callback = action};
+        }
+      },
+      item.action);
+  return used_action;
 }
 
 void Map::check_dead() {
@@ -380,8 +491,13 @@ void Map::check_dead() {
 
 void Map::draw_virt(tcod::Console& console, int x, int y, int w, int h) const {
   int sbw = 14;
+  int sb2w = 14;
 
-  draw_level(console, x, y, w - sbw - 1, h);
+  draw_level(console, x, y, w - sbw - sb2w - 2, h);
+
+  draw_vline(console, x + w - sbw - sb2w - 2, y, h);
+  console[{x + w - sb2w - sbw - 2, y - 1}].ch = L'┬';
+  draw_usables(console, x + w - sbw - sb2w - 1, y, sb2w, h);
 
   draw_vline(console, x + w - sbw - 1, y, h);
   console[{x + w - sbw - 1, y - 1}].ch = L'┬';
@@ -410,6 +526,7 @@ void Map::draw_virt(tcod::Console& console, int x, int y, int w, int h) const {
       std::string(removed, '-'),
       col::WHITE,
       std::nullopt);
+  tcod::print(console, {x + w - sbw + 1, y + 2}, "ATK:" + std::to_string(player->atk), col::WHITE_BR, std::nullopt);
 
   // summarize seen monsters
   std::multimap<std::string, const Actor*> sorted_monsters;
@@ -418,7 +535,7 @@ void Map::draw_virt(tcod::Console& console, int x, int y, int w, int h) const {
       sorted_monsters.insert(std::make_pair(a.mon->breed.name, &a));
     }
   }
-  int col = y + 3;
+  int col = y + 4;
   for (auto it = sorted_monsters.begin(); it != sorted_monsters.end();) {
     std::string key = it->first;
     const Actor* mon = it->second;
@@ -462,6 +579,10 @@ void Map::draw_level(tcod::Console& console, int x, int y, int w, int h) const {
     basex = examining->pos.x - w / 2;
     basey = examining->pos.y - h / 2;
   }
+  if (target_selecting) {
+    basex = target_selecting->pos.x - w / 2;
+    basey = target_selecting->pos.y - h / 2;
+  }
   for (int tx = basex; tx < basex + w; ++tx) {
     for (int ty = basey; ty < basey + h; ++ty) {
       if (in_level(Pos{tx, ty})) {
@@ -485,6 +606,18 @@ void Map::draw_level(tcod::Console& console, int x, int y, int w, int h) const {
       }
     }
   }
+  for (auto [p, i] : floor_items) {
+    if (in_fov(p)) {
+      int console_x = p.x - basex + x;
+      int console_y = p.y - basey + y;
+      const auto& item = items[i.item];
+      if (in_rect(console_x, console_y, x, y, w, h)) {
+        auto& tile = console.at(console_x, console_y);
+        tile.fg = item.color;
+        tile.ch = item.chr;
+      }
+    }
+  }
   for (const auto& elem : actors) {
     const Actor& actor = elem.second;
     if (in_fov(actor.p)) {
@@ -500,6 +633,50 @@ void Map::draw_level(tcod::Console& console, int x, int y, int w, int h) const {
   if (examining) {
     std::swap(console[{x + w / 2, y + h / 2}].bg, console[{x + w / 2, y + h / 2}].fg);
     draw_desc(console, examining->pos, {x + 1, y + h - 1});
+  }
+  if (target_selecting) {
+    std::swap(console[{x + w / 2, y + h / 2}].bg, console[{x + w / 2, y + h / 2}].fg);
+    draw_desc(console, target_selecting->pos, {x + 1, y + h - 1});
+    if (in_fov(target_selecting->pos) && is_walkable(target_selecting->pos)) {
+      auto line = tcod::BresenhamLine(target_selecting->pos, player->p).without_endpoints();
+      for (auto [lx, ly] : line) {
+        auto& tile = console[{lx - basex + x, ly - basey + y}];
+        tile.ch = '*';
+        tile.fg = col::MAGENTA;
+      }
+    }
+  }
+}
+
+void Map::draw_usables(tcod::Console& console, int x, int y, int w, int) const {
+  tcod::print(console, {x + 1, y++}, "Abilities", col::WHITE_BR, std::nullopt);
+  tcod::print(console, {x + 1, y++}, std::string(w - 2, '-'), col::WHITE_BR, std::nullopt);
+  for (int i = 0; i < static_cast<int>(items.size()); ++i) {
+    std::string desc = std::to_string(i + 1) + ")" + items[i].name;
+    tcod::print(console, {x + 1, y}, desc, col::WHITE_BR, std::nullopt);
+    if (item_quantities[i] > 0) {
+      tcod::print(
+          console,
+          {x + 1 + static_cast<int>(desc.length()) + 1, y},
+          "+" + std::to_string(item_quantities[i]),
+          col::GREEN,
+          std::nullopt);
+    } else if (item_quantities[i] < 0) {
+      tcod::print(
+          console,
+          {x + 1 + static_cast<int>(desc.length()) + 1, y},
+          std::to_string(item_quantities[i]),
+          col::RED,
+          std::nullopt);
+    } else {
+      tcod::print(
+          console,
+          {x + 1 + static_cast<int>(desc.length()) + 1, y},
+          std::to_string(item_quantities[i]),
+          col::BLACK_BR,
+          std::nullopt);
+    }
+    ++y;
   }
 }
 
@@ -521,13 +698,16 @@ void Map::draw_desc(tcod::Console& console, Pos tile, Pos disp) const {
     } else {
       actormsg = "You";
     }
-    hpdata = std::make_pair(col::GREEN, "Good health");
+    std::string msg =
+        "HP:" + std::to_string(actor.hp) + "/" + std::to_string(actor.max_hp) + ", ATK:" + std::to_string(actor.atk);
+    hpdata = std::make_pair(col::GREEN, msg);
     double health_rat = static_cast<double>(actor.hp) / actor.max_hp;
     if (health_rat < .6) {
+      hpdata->first = col::YELLOW;
       hpdata = std::make_pair(col::YELLOW, "Feeling shaky");
     }
     if (health_rat < .3) {
-      hpdata = std::make_pair(col::RED, "Nearly dead");
+      hpdata->first = col::RED;
     }
   }
   std::string floormsg;
@@ -539,20 +719,38 @@ void Map::draw_desc(tcod::Console& console, Pos tile, Pos disp) const {
     floormsg = "A wall";
   }
 
-  tcod::print(console, {disp.x, disp.y - 1}, actormsg, col::WHITE_BR, std::nullopt);
-  if (hpdata) {
-    int x = disp.x + actormsg.length();
-    int y = disp.y - 1;
-    console[{x + 1, y}].ch = ' ';
-    console[{x + 1, y}].ch = '(';
-    console[{x + 1, y}].fg = col::WHITE_BR;
-    console[{x + 2, y}].ch = '*';
-    console[{x + 2, y}].fg = hpdata->first;
-    console[{x + 3, y}].ch = ')';
-    console[{x + 3, y}].fg = col::WHITE_BR;
-    console[{x + 3, y}].ch = ')';
-    console[{x + 4, y}].ch = ' ';
-    tcod::print(console, {x + 5, y}, hpdata->second, col::WHITE_BR, std::nullopt);
+  int y_from_bottom = 0;
+  if (floormsg != "") {
+    tcod::print(console, {disp.x, disp.y - y_from_bottom}, floormsg, col::WHITE_BR, std::nullopt);
+    ++y_from_bottom;
   }
-  tcod::print(console, {disp.x, disp.y}, floormsg, col::WHITE_BR, std::nullopt);
+  if (actormsg != "") {
+    tcod::print(console, {disp.x, disp.y - y_from_bottom}, actormsg, col::WHITE_BR, std::nullopt);
+    if (hpdata) {
+      int x = disp.x + actormsg.length();
+      int y = disp.y - y_from_bottom;
+      console[{x + 1, y}].ch = ' ';
+      console[{x + 1, y}].ch = '(';
+      console[{x + 1, y}].fg = col::WHITE_BR;
+      console[{x + 2, y}].ch = '*';
+      console[{x + 2, y}].fg = hpdata->first;
+      console[{x + 3, y}].ch = ')';
+      console[{x + 3, y}].fg = col::WHITE_BR;
+      console[{x + 3, y}].ch = ')';
+      console[{x + 4, y}].ch = ' ';
+      tcod::print(console, {x + 5, y}, hpdata->second, col::WHITE_BR, std::nullopt);
+      ++y_from_bottom;
+    }
+  }
+  auto mbitem = floor_items.find(tile);
+  if (mbitem != floor_items.end()) {
+    const auto& [_, floor_item] = *mbitem;
+    const auto& item = items[floor_item.item];
+    tcod::print(
+        console,
+        {disp.x, disp.y - y_from_bottom},
+        "Item on ground: " + item.name + " x" + std::to_string(floor_item.amount),
+        col::WHITE_BR,
+        std::nullopt);
+  }
 }

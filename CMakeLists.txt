@@ -54,6 +54,8 @@ endif()
 
 find_package(SDL2 CONFIG REQUIRED)
 find_package(libtcod CONFIG REQUIRED)
+find_package(Boost REQUIRED)
+target_include_directories(${PROJECT_NAME} PRIVATE ${Boost_INCLUDE_DIRS})
 target_link_libraries(
     ${PROJECT_NAME}
     PRIVATE

@@ -1,0 +1,5 @@
+#+TITLE: Stuff
+
+* Issues
+** Targetting line drawing vs line of sight
+Should be able to shoot anything in line of sight

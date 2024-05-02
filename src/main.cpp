@@ -10,12 +10,14 @@
 #include <iostream>
 #include <libtcod.hpp>
 
+#include "factory.hpp"
 #include "map.hpp"
 
 using std::chrono::duration_cast;
-using std::chrono::seconds;
 using std::chrono::steady_clock;
 using std::chrono::time_point;
+
+using seconds = std::chrono::duration<double>;
 
 #if defined(_MSC_VER)
 #pragma warning(disable : 4297)  // Allow "throw" in main().  Letting the
@@ -39,7 +41,7 @@ auto get_data_dir() -> std::filesystem::path {
 static tcod::Console g_console;  // The global console object.
 static tcod::Context g_context;  // The global libtcod context.
 static std::unique_ptr<GNode> g_root;
-static time_point<steady_clock> frame_time;
+static std::optional<time_point<steady_clock>> frame_time;
 
 /// Game loop.
 void main_loop() {
@@ -53,7 +55,7 @@ void main_loop() {
 #ifndef __EMSCRIPTEN__
   // Block until events exist.  This conserves resources well but isn't
   // compatible with animations or Emscripten.
-  SDL_WaitEvent(nullptr);
+  // SDL_WaitEvent(nullptr);
 #endif
   while (SDL_PollEvent(&event)) {
     switch (event.type) {
@@ -71,13 +73,16 @@ void main_loop() {
     }
   }
   auto now = steady_clock::now();
-  g_root->tick(duration_cast<seconds>(now - frame_time).count());
+  if (!frame_time) {
+    *frame_time = now;
+  }
+  g_root->tick(duration_cast<seconds>(now - *frame_time).count());
   frame_time = steady_clock::now();
 }
 
 /// Main program entry point.
 int main(int argc, char** argv) {
-  try {
+  {
     auto params = TCOD_ContextParams{};
     params.tcod_version = TCOD_COMPILEDVERSION;
     params.argc = argc;
@@ -98,7 +103,7 @@ int main(int argc, char** argv) {
     std::unique_ptr<GNode> map = std::make_unique<Map>(80, 40);
 
     std::vector<std::pair<std::string, std::unique_ptr<GNode>>> tabs;
-    tabs.push_back(std::make_pair(std::string("Factory"), std::make_unique<GNode>()));
+    tabs.push_back(std::make_pair(std::string("Factory"), std::make_unique<Factory>()));
     tabs.push_back(std::make_pair(std::string("Dungeon"), std::move(map)));
     std::unique_ptr<GNode> root = std::make_unique<GTabs>(std::move(tabs), 1);
     g_root = std::move(root);
@@ -108,8 +113,9 @@ int main(int argc, char** argv) {
 #else
     while (true) main_loop();
 #endif
-  } catch (const std::exception& exc) {
-    std::cerr << exc.what() << "\n";
-    throw;
   }
+  // catch (const std::exception& exc) {
+  //   std::cerr << exc.what() << "\n";
+  //   throw;
+  // }
 }

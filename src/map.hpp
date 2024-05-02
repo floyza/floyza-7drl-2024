@@ -7,10 +7,22 @@
 
 #include "actor.hpp"
 #include "gui.hpp"
+#include "items.hpp"
 #include "pos.hpp"
 
 struct Examining {
   Pos pos;
+};
+
+struct SelectingTarget {
+  Pos pos;
+  int item_to_consume;
+  std::function<void(Map&, ActorSS)> callback;
+};
+
+struct FloorItem {
+  int item;
+  int amount;
 };
 
 class Map : public GNode {
@@ -18,6 +30,7 @@ class Map : public GNode {
   mutable std::vector<std::vector<bool>> discovered;  // discovered[x][y]
   mutable bool fov_dirty =
       true;  // currently assumes walls and stuff don't change, the only invalidation is the player moving
+  std::unordered_map<Pos, FloorItem> floor_items;
   friend bool move_actor(Map&, Actor&, Pos);
   void recompute_fov() const;
 
@@ -37,14 +50,21 @@ class Map : public GNode {
   int player_id;
   Actor* player;
 
+  std::vector<int> item_quantities;
+
   void draw_level(tcod::Console& console, int x, int y, int w, int h) const;
+  void draw_usables(tcod::Console& console, int x, int y, int w, int h) const;
   void draw_virt(tcod::Console& console, int x, int y, int w, int h) const override;
   void process_input_virt(int c) override;
 
+  bool use_ability(int ability);
+  bool attempt_target_select();
   void monsters_act();
   void check_dead();
 
+  // invariant: only one of examining and target_selecting may be non-null
   std::optional<Examining> examining;
+  std::optional<SelectingTarget> target_selecting;
   void draw_desc(tcod::Console& console, Pos tile, Pos disp) const;
 
  public:

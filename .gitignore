@@ -122,3 +122,5 @@ Temporary Items
 build
 
 .cache
+build-release
+build-debug

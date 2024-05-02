@@ -1,7 +1,10 @@
 #ifndef POS_H_
 #define POS_H_
 
+#include <array>
+#include <boost/container_hash/hash.hpp>
 #include <cmath>
+#include <unordered_map>
 
 struct Pos {
   Pos() = default;
@@ -19,6 +22,8 @@ struct Pos {
     y -= p.y;
     return *this;
   }
+
+  constexpr operator std::array<int, 2>() const { return {x, y}; }
 };
 
 constexpr inline bool operator==(const Pos& p0, const Pos& p1) { return p0.x == p1.x && p0.y == p1.y; }
@@ -38,5 +43,15 @@ inline int distance(Pos p0, Pos p1) {
 inline bool in_rect(int x, int y, int rx, int ry, int rw, int rh) {
   return x >= rx && y >= ry && x < rx + rw && y < ry + rh;
 }
+
+template <>
+struct std::hash<Pos> {
+  std::size_t operator()(const Pos& s) const noexcept {
+    std::size_t seed = 0;
+    boost::hash_combine(seed, s.x);
+    boost::hash_combine(seed, s.y);
+    return seed;
+  }
+};
 
 #endif  // POS_H_
