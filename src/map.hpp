@@ -57,6 +57,7 @@ class Map : public GNode {
   void draw_virt(tcod::Console& console, int x, int y, int w, int h) const override;
   void process_input_virt(int c) override;
 
+  bool pickup_item();
   bool use_ability(int ability);
   bool attempt_target_select();
   void monsters_act();

@@ -426,6 +426,10 @@ void Map::process_input_virt(int c) {
       case SDLK_KP_PERIOD:
         used_action = true;
         break;
+      case 'g':
+      case ',':
+        used_action = pickup_item();
+        break;
     }
   }
   if (used_action) {
@@ -433,6 +437,17 @@ void Map::process_input_virt(int c) {
     monsters_act();
     check_dead();
   }
+}
+
+bool Map::pickup_item() {
+  auto mbitem = floor_items.find(player->p);
+  if (mbitem != floor_items.end()) {
+    FloorItem item = mbitem->second;
+    item_quantities[item.item] += item.amount;
+    floor_items.erase(mbitem);
+    return true;
+  }
+  return false;
 }
 
 bool Map::attempt_target_select() {
