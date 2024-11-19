@@ -6,14 +6,9 @@
     {
       "name": "libtcod",
       "default-features": true,
-      "features": [
-        "png",
-        "sdl",
-        "unicode",
-        "zlib"
-      ]
+      "features": ["png", "sdl", "unicode", "zlib"]
     },
-    "sdl2",
     "boost-container-hash"
-  ]
+  ],
+  "builtin-baseline": "d14bd2b23d5b1e1d8e0c05faafcbd74d7b00f629"
 }
