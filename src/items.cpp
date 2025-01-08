@@ -4,7 +4,9 @@
 
 void healing(Map& map) {
   Actor& player = *map.get_player();
-  player.hp = std::min(player.hp + 10, player.max_hp);
+  int nhp = std::min(player.hp + 10, player.max_hp);
+  map.add_message("You heal " + std::to_string(nhp) + " hp.");
+  player.hp = nhp;
 }
 
 void aoe_hit(Map& map) {
@@ -13,6 +15,7 @@ void aoe_hit(Map& map) {
       a.hp -= 5;
     }
   }
+  map.add_message("You blast all nearby enemies for 5 damage.");
 }
 
 void shoot(Map& map, ActorSS i) {
@@ -20,7 +23,8 @@ void shoot(Map& map, ActorSS i) {
   if (!actor) {
     return;
   }
-  (*actor)->hp -= 20;
+  (*actor)->hp -= 15;
+  map.add_message("You hit the " + (*actor)->mon->breed.name + " for 15 damage.");
 }
 
 const std::vector<Item> items{

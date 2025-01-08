@@ -10,6 +10,7 @@
 class Map;
 
 // actor which has a straight shot between it and the player
+// cannot target self
 struct ActorSS {
   int id;
 };

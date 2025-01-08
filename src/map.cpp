@@ -14,7 +14,11 @@
 #include "util.hpp"
 
 Map::Map(int w, int h)
-    : map(w, h), discovered(w, std::vector<bool>(h, false)), floor_items(), item_quantities(items.size(), 0) {
+    : map(w, h),
+      discovered(w, std::vector<bool>(h, false)),
+      floor_items(),
+      item_quantities(items.size(), 0),
+      messages() {
   generate();
   player_id = new_actor_id();
   actors[player_id] = create_player(player_id, entrance_);
@@ -436,6 +440,7 @@ void Map::process_input_virt(int c) {
     check_dead();
     monsters_act();
     check_dead();
+    messages.next_turn();
   }
 }
 
@@ -445,10 +450,13 @@ bool Map::pickup_item() {
     FloorItem item = mbitem->second;
     item_quantities[item.item] += item.amount;
     floor_items.erase(mbitem);
+    messages.add_message("Picked up " + items[item.item].name + " x" + std::to_string(item.amount));
     return true;
   }
   return false;
 }
+
+#include <iostream>
 
 bool Map::attempt_target_select() {
   assert(target_selecting);
@@ -460,10 +468,10 @@ bool Map::attempt_target_select() {
     }
     Actor& actor = **mbactor;
     TCODPath path = get_los_path(*this, player->p, target_selecting->pos);
-    if (path.isEmpty()) {
+    if (path.isEmpty()) {  // don't let us shoot ourselves
       return false;
     }
-    for (int i=0; i<path.size() - 1; ++i) {
+    for (int i = 0; i < path.size() - 1; ++i) {
       int lx, ly;
       path.get(i, &lx, &ly);
       if (actor_at_pos({lx, ly})) {
@@ -500,6 +508,7 @@ void Map::check_dead() {
     if (it->second.hp <= 0) {
       if (it->second.is_player) {
         // you die
+        it->second.hp = 10;
       } else {
         it = actors.erase(it);
         continue;
@@ -650,13 +659,18 @@ void Map::draw_level(tcod::Console& console, int x, int y, int w, int h) const {
       }
     }
   }
+  int bottom_offset = 0;
+  std::vector<std::string> ms = messages.current_messages();
+  for (auto it = ms.rbegin(); it != ms.rend(); ++it) {
+    tcod::print(console, {x + 1, y + h - 1 + (bottom_offset--)}, *it, col::WHITE, std::nullopt);
+  }
   if (examining) {
     std::swap(console[{x + w / 2, y + h / 2}].bg, console[{x + w / 2, y + h / 2}].fg);
-    draw_desc(console, examining->pos, {x + 1, y + h - 1});
+    draw_desc(console, examining->pos, {x + 1, y + h - 1 + bottom_offset});
   }
   if (target_selecting) {
     std::swap(console[{x + w / 2, y + h / 2}].bg, console[{x + w / 2, y + h / 2}].fg);
-    draw_desc(console, target_selecting->pos, {x + 1, y + h - 1});
+    draw_desc(console, target_selecting->pos, {x + 1, y + h - 1 + bottom_offset});
     if (in_fov(target_selecting->pos) && is_walkable(target_selecting->pos)) {
       TCODPath path = get_los_path(*this, player->p, target_selecting->pos);
       for (int i = 0; i < path.size() - 1; ++i) {

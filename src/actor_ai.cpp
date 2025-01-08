@@ -12,7 +12,13 @@ bool move_actor(Map& map, Actor& actor, Pos offset) {
     auto target = map.actor_at_pos(new_pos);
     if (target) {
       // bump attack
-      if (!(actor.mon && (*target)->mon)) {
+      if (!(actor.mon && (*target)->mon)) {  // monsters can't hit other monsters
+        if (actor.is_player) {
+          map.add_message(
+              "You hit the " + (*target)->mon->breed.name + " for " + std::to_string(actor.atk) + " damage.");
+        } else {
+          map.add_message("The " + actor.mon->breed.name + " hits you for " + std::to_string(actor.atk) + " damage.");
+        }
         (*target)->hp -= actor.atk;
       }
     } else {

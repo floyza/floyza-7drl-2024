@@ -8,6 +8,7 @@
 #include "actor.hpp"
 #include "gui.hpp"
 #include "items.hpp"
+#include "message.hpp"
 #include "pos.hpp"
 
 struct Examining {
@@ -68,11 +69,14 @@ class Map : public GNode {
   std::optional<SelectingTarget> target_selecting;
   void draw_desc(tcod::Console& console, Pos tile, Pos disp) const;
 
+  Messages messages;
+
  public:
   Map(int w, int h);
   Pos entrance() const { return entrance_; }
   Pos exit() const { return exit_; }
 
+  void add_message(std::string message) { messages.add_message(std::move(message)); }
   void set_walkable(const Pos& pos, bool walkable);
 
   int get_width() const { return map.getWidth(); }
