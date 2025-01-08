@@ -56,7 +56,7 @@ class Map : public GNode {
   void draw_level(tcod::Console& console, int x, int y, int w, int h) const;
   void draw_usables(tcod::Console& console, int x, int y, int w, int h) const;
   void draw_virt(tcod::Console& console, int x, int y, int w, int h) const override;
-  void process_input_virt(int c) override;
+  void process_input_virt(int c, uint16_t mods) override;
 
   bool pickup_item();
   bool use_ability(int ability);

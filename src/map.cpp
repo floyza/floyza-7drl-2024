@@ -283,7 +283,7 @@ void Map::monsters_act() {
   }
 }
 
-void Map::process_input_virt(int c) {
+void Map::process_input_virt(int c, uint16_t mods) {
   bool used_action = false;
   if (target_selecting) {
     switch (c) {
@@ -421,9 +421,16 @@ void Map::process_input_virt(int c) {
         break;
       case '1':
       case '2':
-      case '3':
-        used_action = use_ability(std::stoi(std::string(1, static_cast<char>(c))) - 1);
+      case '3': {
+        int ability = std::stoi(std::string(1, static_cast<char>(c))) - 1;
+        if (mods & SHIFT) {
+          add_message("DESC: " + items[ability].desc);
+          messages.next_turn();
+        } else {
+          used_action = use_ability(ability);
+        }
         break;
+      }
       case 's':
       case SDLK_KP_5:
       case SDLK_PERIOD:

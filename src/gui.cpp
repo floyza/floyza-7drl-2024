@@ -28,12 +28,12 @@ void GTabs::draw_virt(tcod::Console& console, int x, int y, int w, int h) const 
   tabs[active_tab].second->draw(console, x, y + 4, w, h - 4);
 }
 
-void GTabs::process_input_virt(int c) {
+void GTabs::process_input_virt(int c, uint16_t mods) {
   if (c == '\t') {
     active_tab += 1;
     active_tab %= tabs.size();
   } else {
-    tabs[active_tab].second->process_input(c);
+    tabs[active_tab].second->process_input(c, mods);
   }
 }
 

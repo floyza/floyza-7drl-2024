@@ -67,7 +67,14 @@ void main_loop() {
         if (event.key.keysym.mod & KMOD_SHIFT) {
           ev = std::toupper(ev);
         }
-        g_root->process_input(ev);
+        uint16_t mods = 0;
+        if (event.key.keysym.mod & KMOD_SHIFT) {
+          mods |= SHIFT;
+        }
+        if (event.key.keysym.mod & KMOD_CTRL) {
+          mods |= CTRL;
+        }
+        g_root->process_input(ev, mods);
         break;
       }
     }

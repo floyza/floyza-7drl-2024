@@ -14,6 +14,6 @@ void Factory::draw_virt(tcod::Console& console, int x, int y, int w, int h) cons
   draw_items(console, x + w - sbw, y, sbw, h);
 }
 
-void Factory::process_input_virt(int c) {}
+void Factory::process_input_virt(int c, uint16_t mods) {}
 
 void Factory::tick_virt(double seconds) { counter += seconds; }
