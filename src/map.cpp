@@ -456,8 +456,6 @@ bool Map::pickup_item() {
   return false;
 }
 
-#include <iostream>
-
 bool Map::attempt_target_select() {
   assert(target_selecting);
 
