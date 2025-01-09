@@ -3,7 +3,7 @@
 #include "drawing.hpp"
 
 void GNode::draw(tcod::Console& console, int x, int y, int w, int h) const {
-  if (w > min_width() && h > min_height()) {
+  if (w >= min_width() && h >= min_height()) {
     draw_virt(console, x, y, w, h);
   }
 }
