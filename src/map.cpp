@@ -421,7 +421,9 @@ void Map::process_input_virt(int c, uint16_t mods) {
         break;
       case '1':
       case '2':
-      case '3': {
+      case '3':
+      case '4':
+      case '5': {
         int ability = std::stoi(std::string(1, static_cast<char>(c))) - 1;
         if (mods & SHIFT) {
           add_message("DESC: " + items[ability].desc);
@@ -466,26 +468,53 @@ bool Map::pickup_item() {
 bool Map::attempt_target_select() {
   assert(target_selecting);
 
-  if (in_fov(target_selecting->pos)) {
-    auto mbactor = actor_at_pos(target_selecting->pos);
-    if (!mbactor) {
-      return false;
-    }
-    Actor& actor = **mbactor;
+  if (in_fov(target_selecting->pos) && is_walkable(target_selecting->pos)) {
     TCODPath path = get_los_path(*this, player->p, target_selecting->pos);
-    if (path.isEmpty()) {  // don't let us shoot ourselves
-      return false;
-    }
+    bool self_target = path.isEmpty();
+    bool blocked = false;
     for (int i = 0; i < path.size() - 1; ++i) {
       int lx, ly;
       path.get(i, &lx, &ly);
       if (actor_at_pos({lx, ly})) {
-        return false;
+        blocked = true;
+        break;
       }
     }
-    item_quantities[target_selecting->item_to_consume] -= 1;
-    target_selecting->callback(*this, ActorSS{actor.id});
-    return true;
+    bool used = std::visit(
+        [this, blocked, self_target](auto& action) -> bool {
+          using T = std::decay_t<decltype(action)>;
+          if constexpr (std::is_same_v<T, ItemF<ActorSS>>) {
+            if (blocked || self_target) {
+              return false;
+            }
+            auto mbactor = actor_at_pos(target_selecting->pos);
+            if (!mbactor) {
+              return false;
+            }
+            Actor& actor = **mbactor;
+            action(*this, ActorSS{actor.id});
+            return true;
+          } else if constexpr (std::is_same_v<T, ItemF<PosSS>>) {
+            if (blocked) {
+              return false;
+            }
+            action(*this, PosSS(target_selecting->pos));
+            return true;
+          } else if constexpr (std::is_same_v<T, ItemF<EmptyPos>>) {
+            if (actor_at_pos(target_selecting->pos).has_value()) {
+              return false;
+            }
+            action(*this, EmptyPos(target_selecting->pos));
+            return true;
+          }
+          panic("std::visit for itemfv: missing case");
+        },
+        target_selecting->callback);
+
+    if (used) {
+      item_quantities[target_selecting->item_to_consume] -= 1;
+    }
+    return used;
   }
   return false;
 }
@@ -494,14 +523,15 @@ bool Map::use_ability(int ability) {
   const Item& item = items[ability];
   bool used_action = false;
   std::visit(
-      [this, &used_action, ability](auto&& action) {
+      [this, &used_action, ability, item](auto&& action) {
         using T = std::decay_t<decltype(action)>;
         if constexpr (std::is_same_v<T, ItemF<>>) {
           action(*this);
           item_quantities[ability] -= 1;
           used_action = true;
-        } else if constexpr (std::is_same_v<T, ItemF<ActorSS>>) {
-          target_selecting = {.pos = player->p, .item_to_consume = ability, .callback = action};
+        } else {
+          target_selecting = {
+              .pos = player->p, .item_to_consume = ability, .callback = action, .drawing_flags = item.drawing_flags};
         }
       },
       item.action);
@@ -674,18 +704,67 @@ void Map::draw_level(tcod::Console& console, int x, int y, int w, int h) const {
     draw_desc(console, examining->pos, {x + 1, y + h - 1 + bottom_offset});
   }
   if (target_selecting) {
-    std::swap(console[{x + w / 2, y + h / 2}].bg, console[{x + w / 2, y + h / 2}].fg);
-    draw_desc(console, target_selecting->pos, {x + 1, y + h - 1 + bottom_offset});
+    bool good_path = false;
     if (in_fov(target_selecting->pos) && is_walkable(target_selecting->pos)) {
-      TCODPath path = get_los_path(*this, player->p, target_selecting->pos);
-      for (int i = 0; i < path.size() - 1; ++i) {
-        int lx, ly;
-        path.get(i, &lx, &ly);
-        auto& tile = console[{lx - basex + x, ly - basey + y}];
-        tile.ch = '*';
-        tile.fg = col::MAGENTA;
+      if (is_smite(target_selecting->callback)) {
+        good_path = true;
+      } else {
+        good_path = true;
+        TCODPath path = get_los_path(*this, player->p, target_selecting->pos);
+        for (int i = 0; i < path.size() - 1; ++i) {
+          int lx, ly;
+          path.get(i, &lx, &ly);
+          if (actor_at_pos({lx, ly})) {
+            good_path = false;
+            break;
+          }
+        }
+        for (int i = 0; i < path.size() - 1; ++i) {
+          int lx, ly;
+          path.get(i, &lx, &ly);
+          auto& tile = console[{lx - basex + x, ly - basey + y}];
+          if (actor_at_pos({lx, ly})) {
+            tile.fg = col::BLACK;
+            tile.bg = col::RED;
+          } else {
+            tile.ch = '*';
+            if (good_path) {
+              tile.fg = col::MAGENTA;
+            } else {
+              tile.fg = col::BLACK_BR;
+            }
+          }
+        }
       }
     }
+    Pos center(x + w / 2, y + h / 2);
+    if (good_path && (target_selecting->drawing_flags & FIREBALL_DRAW)) {
+      std::vector targets = {
+          Pos(-1, -1), Pos(-1, 0), Pos(-1, 1), Pos(0, -1), Pos(0, 1), Pos(1, -1), Pos(1, 0), Pos(1, 1)};
+      for (Pos d : targets) {
+        Pos t = center + d;
+        Pos treal = target_selecting->pos + d;
+        if (!in_fov(treal) || !is_walkable(treal)) {
+          continue;
+        }
+        if (!actor_at_pos(treal)) {
+          console[t].ch = '*';
+        }
+        console[t].fg = col::BLACK;
+        console[t].bg = col::MAGENTA;
+      }
+    }
+
+    if (!actor_at_pos(target_selecting->pos)) {
+      console[center].ch = '*';
+    }
+    console[center].fg = col::BLACK;
+    if (good_path) {
+      console[center].bg = col::RED_BR;
+    } else {
+      console[center].bg = col::RED;
+    }
+    draw_desc(console, target_selecting->pos, {x + 1, y + h - 1 + bottom_offset});
   }
 }
 

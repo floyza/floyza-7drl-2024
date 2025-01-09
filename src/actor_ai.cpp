@@ -49,7 +49,7 @@ class MonsterPathCost : public ITCODPathCallback {
 
 void monster_act(Map& map, Actor& actor) {
   if (map.in_fov(actor.p)) {
-    actor.mon->target = map.get_player()->p;
+    actor.mon->target = map.get_player().p;
   } else if (percent_chance(30)) {
     actor.mon->target = std::nullopt;
   }

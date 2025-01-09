@@ -18,7 +18,8 @@ struct Examining {
 struct SelectingTarget {
   Pos pos;
   int item_to_consume;
-  std::function<void(Map&, ActorSS)> callback;
+  ItemFV callback;
+  unsigned drawing_flags;
 };
 
 struct FloorItem {
@@ -93,9 +94,14 @@ class Map : public GNode {
   std::optional<Actor*> get_actor(int id);
   std::unordered_map<int, Actor> actors;
 
-  Actor* get_player() { return player; }
+  Actor& get_player() { return *player; }
 
   bool in_fov(Pos pos) const;
+
+  void teleport_player(Pos pt) {
+    player->p = pt;
+    fov_dirty = true;
+  }
 };
 
 #endif  // MAP_H_

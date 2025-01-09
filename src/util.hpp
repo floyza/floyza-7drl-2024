@@ -2,6 +2,7 @@
 #define UTIL_H_
 
 #include <cctype>
+#include <string_view>
 
 inline bool is_vowel(int c) {
   int lc = std::tolower(c);
@@ -15,5 +16,9 @@ inline bool is_vowel(int c) {
   }
   return false;
 }
+
+[[noreturn]] void panic(std::string_view message);
+
+void dlog(std::string_view message);
 
 #endif
