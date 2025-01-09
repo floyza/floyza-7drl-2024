@@ -2,8 +2,7 @@
 #define GUI_H_
 
 #include <libtcod/console_types.hpp>
-
-#include "drawing.hpp"
+#include <vector>
 
 enum Modifiers {
   SHIFT = 1,

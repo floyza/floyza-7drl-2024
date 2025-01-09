@@ -1,4 +1,3 @@
-#include "colors.hpp"
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #endif  // __EMSCRIPTEN__
@@ -7,7 +6,6 @@
 #include <chrono>
 #include <cstdlib>
 #include <filesystem>
-#include <iostream>
 #include <libtcod.hpp>
 
 #include "factory.hpp"

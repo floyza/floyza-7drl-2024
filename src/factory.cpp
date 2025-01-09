@@ -1,5 +1,6 @@
 #include "factory.hpp"
 
+#include "drawing.hpp"
 #include "items.hpp"
 
 Factory::Factory() : item_quantities(items.size(), 0) {}

@@ -1,5 +1,6 @@
 #include "items.hpp"
 
+#include "colors.hpp"
 #include "map.hpp"
 
 bool is_smite(const ItemFV& f) { return std::holds_alternative<ItemF<EmptyPos>>(f); }
