@@ -8,7 +8,7 @@ bool is_smite(const ItemFV& f) { return std::holds_alternative<ItemF<EmptyPos>>(
 void healing(Map& map) {
   Actor& player = map.get_player();
   int nhp = std::min(player.hp + 10, player.max_hp);
-  map.add_message("You heal " + std::to_string(nhp) + " hp.");
+  map.add_message("You heal " + std::to_string(nhp - player.hp) + " hp.");
   player.hp = nhp;
 }
 
