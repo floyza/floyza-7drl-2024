@@ -8,8 +8,8 @@
 #include <filesystem>
 #include <libtcod.hpp>
 
+#include "dungeons.hpp"
 #include "factory.hpp"
-#include "map.hpp"
 
 using std::chrono::duration_cast;
 using std::chrono::steady_clock;
@@ -105,11 +105,11 @@ int main(int argc, char** argv) {
 
     g_context = tcod::Context(params);
 
-    std::unique_ptr<GNode> map = std::make_unique<Map>(80, 40);
+    std::unique_ptr<GNode> dungeons = std::make_unique<Dungeons>();
 
     std::vector<std::pair<std::string, std::unique_ptr<GNode>>> tabs;
     tabs.push_back(std::make_pair(std::string("Factory"), std::make_unique<Factory>()));
-    tabs.push_back(std::make_pair(std::string("Dungeon"), std::move(map)));
+    tabs.push_back(std::make_pair(std::string("Dungeon"), std::move(dungeons)));
     std::unique_ptr<GNode> root = std::make_unique<GTabs>(std::move(tabs), 1);
     g_root = std::move(root);
 
