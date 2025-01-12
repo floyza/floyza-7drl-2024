@@ -446,6 +446,7 @@ void Map::process_input_virt(int c, uint16_t mods) {
     }
   }
   if (used_action) {
+    ++turn_count;
     check_dead();
     monsters_act();
     check_dead();
@@ -768,7 +769,8 @@ void Map::draw_level(tcod::Console& console, int x, int y, int w, int h) const {
   }
 }
 
-void Map::draw_usables(tcod::Console& console, int x, int y, int w, int) const {
+void Map::draw_usables(tcod::Console& console, int x, int y, int w, int h) const {
+  int starting_y = y;
   tcod::print(console, {x + 1, y++}, "Abilities", col::WHITE_BR, std::nullopt);
   tcod::print(console, {x + 1, y++}, std::string(w - 2, '-'), col::WHITE_BR, std::nullopt);
   for (int i = 0; i < static_cast<int>(items.size()); ++i) {
@@ -798,6 +800,7 @@ void Map::draw_usables(tcod::Console& console, int x, int y, int w, int) const {
     }
     ++y;
   }
+  tcod::print(console, {x + 1, starting_y + h - 2}, "TC: " + std::to_string(turn_count), col::WHITE_BR, std::nullopt);
 }
 
 // assumes there's some room above

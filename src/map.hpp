@@ -72,6 +72,8 @@ class Map : public GNode {
 
   Messages messages;
 
+  int turn_count = 0;
+
  public:
   Map(int w, int h);
   Pos entrance() const { return entrance_; }
