@@ -4,3 +4,4 @@
 ** DONE Targetting line drawing vs line of sight
 Should be able to shoot anything in line of sight
 ** TODO prevent knowing what's a wall and what's a floor outside of LoS
+** TODO attack buff item?

@@ -62,6 +62,8 @@ void fireball(Map& map, PosSS i) {
 
 void controlled_blink(Map& map, EmptyPos pos) { map.teleport_player(pos.pt); }
 
+void nothing_item(Map&) {}
+
 const std::vector<Item> items{
     Item{.name = "HPPot", .desc = "Heal 10 hp", .chr = '!', .color = col::BLUE_BR, .action = healing},
     Item{.name = "Shoot", .desc = "Shoot an enemy for 20 damage", .chr = '/', .color = col::WHITE_BR, .action = shoot},
@@ -84,4 +86,8 @@ const std::vector<Item> items{
         .chr = '?',
         .color = col::YELLOW_BR,
         .action = controlled_blink},
+    Item{.name = "NTHNG", .desc = "Does nothing.", .chr = '$', .color = col::YELLOW_BR, .action = nothing_item},
+    Item{.name = "NTHNG", .desc = "Does nothing.", .chr = '$', .color = col::YELLOW_BR, .action = nothing_item},
+    Item{.name = "NTHNG", .desc = "Does nothing.", .chr = '$', .color = col::YELLOW_BR, .action = nothing_item},
+    Item{.name = "NTHNG", .desc = "Does nothing.", .chr = '$', .color = col::YELLOW_BR, .action = nothing_item},
 };

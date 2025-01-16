@@ -19,7 +19,7 @@ void Dungeons::process_input_virt(int c, uint16_t mods) {
     map->process_input(c, mods);
   } else {
     if (c == SDLK_RETURN) {
-      map = std::make_unique<Map>(80, 40);
+      map = std::make_unique<Map>(this, 80, 40);
     }
   }
 }

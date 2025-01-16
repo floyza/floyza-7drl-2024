@@ -95,3 +95,13 @@ void draw_vline(TCOD_Console& console, int x, int y, int length, TCOD_ColorRGB f
     tile.fg = fg;
   }
 }
+
+void draw_d(TCOD_Console& console, int x, int y, int d) {
+  if (d > 0) {
+    tcod::print(console, {x, y}, "+" + std::to_string(d), col::GREEN, std::nullopt);
+  } else if (d < 0) {
+    tcod::print(console, {x, y}, std::to_string(d), col::RED, std::nullopt);
+  } else {
+    tcod::print(console, {x, y}, std::to_string(d), col::BLACK_BR, std::nullopt);
+  }
+}

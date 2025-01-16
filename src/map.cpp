@@ -13,12 +13,13 @@
 #include "rand.hpp"
 #include "util.hpp"
 
-Map::Map(int w, int h)
+Map::Map(Dungeons* parent, int w, int h)
     : map(w, h),
       discovered(w, std::vector<bool>(h, false)),
       floor_items(),
       item_quantities(items.size(), 0),
-      messages() {
+      messages(),
+      parent(parent) {
   generate();
   player_id = new_actor_id();
   actors[player_id] = create_player(player_id, entrance_);
@@ -776,28 +777,7 @@ void Map::draw_usables(tcod::Console& console, int x, int y, int w, int h) const
   for (int i = 0; i < static_cast<int>(items.size()); ++i) {
     std::string desc = std::to_string(i + 1) + ")" + items[i].name;
     tcod::print(console, {x + 1, y}, desc, col::WHITE_BR, std::nullopt);
-    if (item_quantities[i] > 0) {
-      tcod::print(
-          console,
-          {x + 1 + static_cast<int>(desc.length()) + 1, y},
-          "+" + std::to_string(item_quantities[i]),
-          col::GREEN,
-          std::nullopt);
-    } else if (item_quantities[i] < 0) {
-      tcod::print(
-          console,
-          {x + 1 + static_cast<int>(desc.length()) + 1, y},
-          std::to_string(item_quantities[i]),
-          col::RED,
-          std::nullopt);
-    } else {
-      tcod::print(
-          console,
-          {x + 1 + static_cast<int>(desc.length()) + 1, y},
-          std::to_string(item_quantities[i]),
-          col::BLACK_BR,
-          std::nullopt);
-    }
+    draw_d(console, x + static_cast<int>(desc.length()) + 2, y, item_quantities[i]);
     ++y;
   }
   tcod::print(console, {x + 1, starting_y + h - 2}, "TC: " + std::to_string(turn_count), col::WHITE_BR, std::nullopt);

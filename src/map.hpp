@@ -27,6 +27,8 @@ struct FloorItem {
   int amount;
 };
 
+class Dungeons;
+
 class Map : public GNode {
   mutable TCODMap map;
   mutable std::vector<std::vector<bool>> discovered;  // discovered[x][y]
@@ -74,8 +76,10 @@ class Map : public GNode {
 
   int turn_count = 0;
 
+  Dungeons* parent;
+
  public:
-  Map(int w, int h);
+  Map(Dungeons* parent, int w, int h);
   Pos entrance() const { return entrance_; }
   Pos exit() const { return exit_; }
 

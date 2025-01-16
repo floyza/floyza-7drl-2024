@@ -46,6 +46,6 @@ struct Item {
   unsigned drawing_flags = 0;
 };
 
-extern const std::vector<Item> items;
+extern const std::vector<Item> items;  // length of 9
 
 #endif
