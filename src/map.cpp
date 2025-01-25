@@ -8,6 +8,7 @@
 #include "colors.hpp"
 #include "dir.hpp"
 #include "drawing.hpp"
+#include "dungeons.hpp"
 #include "items.hpp"
 #include "los_path.hpp"
 #include "rand.hpp"
@@ -436,13 +437,25 @@ void Map::process_input_virt(int c, uint16_t mods) {
       }
       case 's':
       case SDLK_KP_5:
-      case SDLK_PERIOD:
       case SDLK_KP_PERIOD:
+        // handle period lower down
         used_action = true;
         break;
       case 'g':
       case ',':
         used_action = pickup_item();
+        break;
+      case '.':
+        if (!(mods & SHIFT)) {
+          // not '>'
+          used_action = true;
+          break;
+        }
+        // fallthrough
+      case '>':
+        if (player->p == exit_) {
+          parent->left_dungeon = true;
+        }
         break;
     }
   }

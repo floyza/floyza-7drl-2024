@@ -17,9 +17,13 @@ void Dungeons::draw_virt(tcod::Console& console, int x, int y, int w, int h) con
 void Dungeons::process_input_virt(int c, uint16_t mods) {
   if (map) {
     map->process_input(c, mods);
+    if (left_dungeon) {
+      map = nullptr;
+    }
   } else {
     if (c == SDLK_RETURN) {
       map = std::make_unique<Map>(this, 80, 40);
+      left_dungeon = false;
     }
   }
 }

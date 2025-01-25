@@ -13,6 +13,8 @@ class Dungeons : public GNode {
  public:
   Dungeons();
   ~Dungeons() override{};
+
+  bool left_dungeon = false;
 };
 
 #endif  // DUNGEONS_H_
