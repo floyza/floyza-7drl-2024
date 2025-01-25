@@ -798,6 +798,8 @@ void Map::draw_usables(tcod::Console& console, int x, int y, int w, int h) const
 
 // assumes there's some room above
 void Map::draw_desc(tcod::Console& console, Pos tile, Pos disp) const {
+  bool visible = in_fov(tile);
+  bool seen_before = discovered[tile.x][tile.y];
   auto mbactor = actor_at_pos(tile);
   std::optional<std::pair<TCOD_ColorRGB, std::string>> hpdata;
   std::string actormsg;
@@ -820,7 +822,6 @@ void Map::draw_desc(tcod::Console& console, Pos tile, Pos disp) const {
     double health_rat = static_cast<double>(actor.hp) / actor.max_hp;
     if (health_rat < .6) {
       hpdata->first = col::YELLOW;
-      hpdata = std::make_pair(col::YELLOW, "Feeling shaky");
     }
     if (health_rat < .3) {
       hpdata->first = col::RED;
@@ -836,11 +837,16 @@ void Map::draw_desc(tcod::Console& console, Pos tile, Pos disp) const {
   }
 
   int y_from_bottom = 0;
-  if (floormsg != "") {
-    tcod::print(console, {disp.x, disp.y - y_from_bottom}, floormsg, col::WHITE_BR, std::nullopt);
-    ++y_from_bottom;
+  if (seen_before) {
+    if (floormsg != "") {
+      tcod::print(console, {disp.x, disp.y - y_from_bottom}, floormsg, col::WHITE_BR, std::nullopt);
+      ++y_from_bottom;
+    }
+  } else {
+    tcod::print(
+        console, {disp.x, disp.y - y_from_bottom}, "You've never been there before.", col::WHITE_BR, std::nullopt);
   }
-  if (actormsg != "") {
+  if (visible && actormsg != "") {
     tcod::print(console, {disp.x, disp.y - y_from_bottom}, actormsg, col::WHITE_BR, std::nullopt);
     if (hpdata) {
       int x = disp.x + actormsg.length();
@@ -859,7 +865,7 @@ void Map::draw_desc(tcod::Console& console, Pos tile, Pos disp) const {
     }
   }
   auto mbitem = floor_items.find(tile);
-  if (mbitem != floor_items.end()) {
+  if (visible && mbitem != floor_items.end()) {
     const auto& [_, floor_item] = *mbitem;
     const auto& item = items[floor_item.item];
     tcod::print(
