@@ -3,13 +3,9 @@
 #include "drawing.hpp"
 #include "items.hpp"
 
-Factory::Factory() : item_quantities(items.size(), 0) {
-  lines = {
-      {.item_quantities = {0, 123, 2, 3, 456, -1, -2, -3, -456}, .turn_amount = 1231, .progress = 0},
-      {.item_quantities = {0, 123, 2, 3, 456, -1, -2, -3, -456}, .turn_amount = 1231, .progress = 0},
-      {.item_quantities = {0, 123, 2, 3, 456, -1, -2, -3, -456}, .turn_amount = 1231, .progress = 0},
-      {.item_quantities = {0, 123, 2, 3, 456, -1, -2, -3, -456}, .turn_amount = 1231, .progress = 0}};
-}
+using std::optional;
+
+Factory::Factory() : item_quantities(items.size(), 0), lines(4, std::nullopt) {}
 
 void Factory::draw_items(tcod::Console& console, int x, int y, int w, int h) const {
   tcod::print(console, {x + 1, y}, "Stock", col::WHITE_BR, std::nullopt);
@@ -27,11 +23,16 @@ void Factory::draw_lines(tcod::Console& console, int x, int y, int w, int h) con
   int line_width = entry_x * 3 + 3;
   int line_height = 7;
   int line_i = 0;
-  for (const DungeonLine& line : lines) {
+  for (const optional<DungeonLine>& mbline : lines) {
     int lx = x + (line_i % 2) * (line_width + 1) + 1;
     int ly = y + line_i / 2 * line_height;
     ++line_i;
     draw_box(console, {lx, ly, line_width, line_height});
+    if (!mbline) {
+      // tcod::print(console, {lx + 2, ly}, "Empty", col::WHITE_BR, std::nullopt);
+      continue;
+    }
+    const DungeonLine& line = *mbline;
     tcod::print(console, {lx + 2, ly}, "Assembly", col::WHITE_BR, std::nullopt);
     for (int iqx = 0; iqx < 3; ++iqx) {
       for (int iqy = 0; iqy < 3; ++iqy) {
@@ -55,7 +56,7 @@ void Factory::draw_lines(tcod::Console& console, int x, int y, int w, int h) con
     tcod::print(
         console,
         {lx + 2 + progress_filled, ly + 5},
-        std::string(line_width - 4 - progress_filled, '-'),
+        std::string(line_width - 4 - progress_filled, '-'),  // crashes here
         col::WHITE,
         std::nullopt);
   }
@@ -73,8 +74,40 @@ void Factory::draw_virt(tcod::Console& console, int x, int y, int w, int h) cons
 void Factory::process_input_virt(int c, uint16_t mods) {}
 
 void Factory::tick_virt(double seconds) {
-  for (DungeonLine& line : lines) {
-    line.progress++;
+  for (optional<DungeonLine>& mbline : lines) {
+    if (!mbline) {
+      continue;
+    }
+    DungeonLine& line = *mbline;
+    if (line.started) {
+      line.progress++;
+    } else {
+      bool enough_stuff = true;
+      for (size_t i = 0; i < item_quantities.size(); ++i) {
+        if (line.item_quantities[i] < 0 && (item_quantities[i] + line.item_quantities[i]) < 0) {
+          enough_stuff = false;
+          break;
+        }
+      }
+      if (enough_stuff) {
+        line.started = true;
+        line.progress++;
+        for (size_t i = 0; i < item_quantities.size(); ++i) {
+          if (line.item_quantities[i] < 0) {
+            item_quantities[i] += line.item_quantities[i];
+          }
+        }
+      }
+    }
+    if (line.progress >= line.turn_amount) {
+      line.started = false;
+      line.progress = 0;
+      for (size_t i = 0; i < item_quantities.size(); ++i) {
+        if (line.item_quantities[i] > 0) {
+          item_quantities[i] += line.item_quantities[i];
+        }
+      }
+    }
   }
   counter += seconds;
 }

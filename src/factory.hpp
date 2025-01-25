@@ -4,6 +4,7 @@
 #include "gui.hpp"
 
 struct DungeonLine {
+  bool started;
   std::vector<int> item_quantities;
   int turn_amount;
   int progress;
@@ -20,7 +21,7 @@ class Factory : public GNode {
   double counter = 0;
   std::vector<int> item_quantities;
 
-  std::vector<DungeonLine> lines;
+  std::vector<std::optional<DungeonLine>> lines;
 
  public:
   Factory();
