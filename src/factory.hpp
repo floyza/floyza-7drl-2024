@@ -10,6 +10,8 @@ struct DungeonLine {
   int progress;
 };
 
+class Dungeons;
+
 class Factory : public GNode {
   void draw_items(tcod::Console& console, int x, int y, int w, int h) const;
   void draw_lines(tcod::Console& console, int x, int y, int w, int h) const;
@@ -23,8 +25,10 @@ class Factory : public GNode {
 
   std::vector<std::optional<DungeonLine>> lines;
 
+  Dungeons* dungeons;
+
  public:
-  Factory();
+  Factory(Dungeons* dungeons);
   ~Factory() override{};
 };
 

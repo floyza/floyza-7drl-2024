@@ -80,6 +80,8 @@ class Map : public GNode {
 
  public:
   Map(Dungeons* parent, int w, int h);
+  ~Map() override{};
+
   Pos entrance() const { return entrance_; }
   Pos exit() const { return exit_; }
 
@@ -101,6 +103,9 @@ class Map : public GNode {
   std::unordered_map<int, Actor> actors;
 
   Actor& get_player() { return *player; }
+
+  const std::vector<int>& get_item_quantities() const { return item_quantities; }
+  int get_turn_count() const { return turn_count; }
 
   bool in_fov(Pos pos) const;
 

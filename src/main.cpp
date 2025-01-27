@@ -105,10 +105,10 @@ int main(int argc, char** argv) {
 
     g_context = tcod::Context(params);
 
-    std::unique_ptr<GNode> dungeons = std::make_unique<Dungeons>();
+    std::unique_ptr<Dungeons> dungeons = std::make_unique<Dungeons>();
 
     std::vector<std::pair<std::string, std::unique_ptr<GNode>>> tabs;
-    tabs.push_back(std::make_pair(std::string("Factory"), std::make_unique<Factory>()));
+    tabs.push_back(std::make_pair(std::string("Factory"), std::make_unique<Factory>(dungeons.get())));
     tabs.push_back(std::make_pair(std::string("Dungeon"), std::move(dungeons)));
     std::unique_ptr<GNode> root = std::make_unique<GTabs>(std::move(tabs), 1);
     g_root = std::move(root);

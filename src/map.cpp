@@ -16,7 +16,7 @@
 
 Map::Map(Dungeons* parent, int w, int h)
     : map(w, h),
-      discovered(w, std::vector<bool>(h, false)),
+      discovered(w, std::vector<bool>(h, true)),
       floor_items(),
       item_quantities(items.size(), 0),
       messages(),

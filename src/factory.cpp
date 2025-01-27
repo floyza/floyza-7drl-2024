@@ -1,11 +1,12 @@
 #include "factory.hpp"
 
 #include "drawing.hpp"
+#include "dungeons.hpp"
 #include "items.hpp"
 
 using std::optional;
 
-Factory::Factory() : item_quantities(items.size(), 0), lines(4, std::nullopt) {}
+Factory::Factory(Dungeons* dungeons) : item_quantities(items.size(), 0), lines(4, std::nullopt), dungeons(dungeons) {}
 
 void Factory::draw_items(tcod::Console& console, int x, int y, int w, int h) const {
   tcod::print(console, {x + 1, y}, "Stock", col::WHITE_BR, std::nullopt);
@@ -23,13 +24,21 @@ void Factory::draw_lines(tcod::Console& console, int x, int y, int w, int h) con
   int line_width = entry_x * 3 + 3;
   int line_height = 7;
   int line_i = 0;
+  char dungeon_bind_char = 'A';
   for (const optional<DungeonLine>& mbline : lines) {
     int lx = x + (line_i % 2) * (line_width + 1) + 1;
     int ly = y + line_i / 2 * line_height;
     ++line_i;
     draw_box(console, {lx, ly, line_width, line_height});
     if (!mbline) {
-      // tcod::print(console, {lx + 2, ly}, "Empty", col::WHITE_BR, std::nullopt);
+      if (std::holds_alternative<MapResults>(dungeons->state)) {
+        tcod::print(
+            console,
+            {lx + 2, ly + 2},
+            "Press (" + std::string(1, dungeon_bind_char++) + ") to bind here.",
+            col::WHITE_BR,
+            std::nullopt);
+      }
       continue;
     }
     const DungeonLine& line = *mbline;
@@ -71,7 +80,29 @@ void Factory::draw_virt(tcod::Console& console, int x, int y, int w, int h) cons
   draw_lines(console, x, y, w - sbw - 1, h);
 }
 
-void Factory::process_input_virt(int c, uint16_t mods) {}
+void Factory::process_input_virt(int c, uint16_t mods) {
+  if (std::holds_alternative<MapResults>(dungeons->state)) {
+    const auto& stats = std::get<MapResults>(dungeons->state);
+    if (c >= 'A' && c <= 'Z') {
+      int i = c - 'A';
+      int curr = 0;
+      for (std::optional<DungeonLine>& line : lines) {
+        if (!line) {
+          if (i == curr) {
+            line = DungeonLine{
+                .started = true,
+                .item_quantities = stats.item_quantities,
+                .turn_amount = stats.turn_amount,
+                .progress = 0};
+            dungeons->state = std::monostate();
+            break;
+          }
+          curr++;
+        }
+      }
+    }
+  }
+}
 
 void Factory::tick_virt(double seconds) {
   for (optional<DungeonLine>& mbline : lines) {
